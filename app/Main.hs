@@ -24,7 +24,7 @@ startY = (height - cellSize) / 2.0
 title  = "Snake Game"
 
 game :: Game
-game = (World.mapData, (((0, 0), 0, 0), []))
+game = (World.mapData, (((1*cellSize, -1*cellSize), 0, 0), []))
 
 window :: Display
 window = (InWindow title (iwidth, iheight) (0, 0))
@@ -59,7 +59,9 @@ drawMap (h:t) x y = drawMapCell x y h : drawMap t (nextX x) (nextY y)
             | otherwise = yy
 
 drawNode :: Node -> Picture
-drawNode (x, y) = translate x y (color blue $ rectangleSolid cellSize cellSize)
+drawNode (x, y) = translate x y (color blue $ circleSolid radius)
+    where
+        radius = cellSize/2
 
 drawSnake :: Snake -> [Picture]
 drawSnake (((x, y), _, _), body) = drawNode (x, y) : map drawNode body
@@ -69,16 +71,30 @@ drawingFunc (mapData, snake) = translate startX startY (pictures $ (drawMap mapD
 
 -- Update
 updateFunc :: Float -> Game -> Game
-updateFunc dt (mapData, (((x, y), velx, vely), body)) = (mapData, (((newX, newY), velx, vely), newBody))
+updateFunc dt (mapData, (((x, y), velx, vely), body)) = (mapData, (((newX, newY), newVelx, newVely), newBody))
     where
-        newX = x + velx*cellSize
-        newY = y + vely*cellSize
+        nextX = x + velx*cellSize
+        nextY = y + vely*cellSize
+
+        (newVelx, newVely) = updateVel velx vely nextX nextY
+        newX = x + newVelx*cellSize
+        newY = y + newVely*cellSize
         newBody = updateBody (x, y) body
 
-        updateBody :: Node -> [Node] -> [Node]
-        updateBody _ []   = []
-        updateBody (x, y) (h:t) = (x, y) : updateBody h t
+updateBody :: Node -> [Node] -> [Node]
+updateBody _ []   = []
+updateBody (x, y) (h:t) = (x, y) : updateBody h t
 
+updateVel :: Float -> Float -> Float -> Float -> (Float, Float)
+updateVel velx vely nx ny
+    | (wallCollision x y) == True = (0, 0)
+    | otherwise                             = (velx, vely)
+    where
+        x = cell2coord nx
+        y = cell2coord ny
+
+cell2coord :: Float -> Int
+cell2coord c = round (c / cellSize)
 
 -- Inputs
 inputHandler :: Event -> Game -> Game
