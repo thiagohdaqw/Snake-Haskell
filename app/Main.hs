@@ -6,29 +6,35 @@ import Data.Fixed
 
 import World
 
-type Node = (Float, Float)
-type Head = (Float, Float, Float, Float)
-type Body = [Node]
+type Node = (Float, Float)                   -- (x, y)
+type Head  = (Node, Float, Float)            -- (coords, velx, vely)
+type Body  = [Node]
 type Snake = (Head, Body)
-type Game = (Map, Snake) 
+type Game  = (Map, Snake) 
 
-fps = 2
+fps = 5
 
-width = 800     :: Int
-height = 600    :: Int
-blockSize = 50  :: Float
+width       = 800       :: Float
+height      = 600       :: Float
+cellSize    = 50        :: Float
 
-startX = (blockSize - fromIntegral width + 1) / 2 
-startY = (fromIntegral height - blockSize - 1 ) / 2
+startX = (cellSize - width)  / 2.0
+startY = (height - cellSize) / 2.0
 
-offset = blockSize/2
+title  = "Snake Game"
 
 game :: Game
-game = (World.mapData, ((0, 0, 0, 0), []))
+game = (World.mapData, (((0, 0), 0, 0), []))
+
+window :: Display
+window = (InWindow title (iwidth, iheight) (0, 0))
+    where
+        iwidth  = round width
+        iheight = round height
 
 main :: IO ()
 main = play
-    (InWindow "Snake Map" (width, height) (600, 600))
+    window
     white
     fps
     game
@@ -38,38 +44,35 @@ main = play
 
 
 -- Draw
-colorCell 0 = red
-colorCell 1 = black
-
 drawMapCell :: Float -> Float -> Cell -> Picture
-drawMapCell x y cell = translate x y $ color (colorCell cell) $ rectangleSolid blockSize blockSize
+drawMapCell x y cell = translate x y $ color (colorCell cell) $ rectangleSolid cellSize cellSize
 
 drawMap :: Map -> Float -> Float -> [Picture]
 drawMap [] _ _ = []
 drawMap (h:t) x y = drawMapCell x y h : drawMap t (nextX x) (nextY y)
     where
         nextX xx
-            | mod' (xx + blockSize) 800 == 0 = 0
-            | otherwise = xx + blockSize
+            | mod' (xx + cellSize) width == 0 = 0
+            | otherwise = xx + cellSize
         nextY yy
-            | mod' (x + blockSize) 800 == 0 = yy - blockSize
+            | mod' (x + cellSize) width == 0 = yy - cellSize
             | otherwise = yy
 
 drawNode :: Node -> Picture
-drawNode (x, y) = translate x y (color blue $ rectangleSolid blockSize blockSize)
+drawNode (x, y) = translate x y (color blue $ rectangleSolid cellSize cellSize)
 
 drawSnake :: Snake -> [Picture]
-drawSnake ((x, y, _, _), body) = drawNode (x, y) : map drawNode body
+drawSnake (((x, y), _, _), body) = drawNode (x, y) : map drawNode body
 
 drawingFunc :: Game -> Picture
 drawingFunc (mapData, snake) = translate startX startY (pictures $ (drawMap mapData 0 0) ++ drawSnake snake)
 
 -- Update
 updateFunc :: Float -> Game -> Game
-updateFunc dt (mapData, ((x, y, velx, vely), body)) = (mapData, ((newX, newY, velx, vely), newBody))
+updateFunc dt (mapData, (((x, y), velx, vely), body)) = (mapData, (((newX, newY), velx, vely), newBody))
     where
-        newX = x + velx*blockSize
-        newY = y + vely*blockSize
+        newX = x + velx*cellSize
+        newY = y + vely*cellSize
         newBody = updateBody (x, y) body
 
         updateBody :: Node -> [Node] -> [Node]
@@ -79,10 +82,10 @@ updateFunc dt (mapData, ((x, y, velx, vely), body)) = (mapData, ((newX, newY, ve
 
 -- Inputs
 inputHandler :: Event -> Game -> Game
-inputHandler (EventKey (SpecialKey KeyUp) Down _ _)     (mapData, ((x, y, _, _), body)) = (mapData, ((x, y, 0,  1), body))
-inputHandler (EventKey (SpecialKey KeyDown) Down _ _)   (mapData, ((x, y, _, _), body)) = (mapData, ((x, y, 0,  -1), body))
-inputHandler (EventKey (SpecialKey KeyRight) Down _ _)  (mapData, ((x, y, _, _), body)) = (mapData, ((x, y, 1,  0), body))
-inputHandler (EventKey (SpecialKey KeyLeft) Down _ _)   (mapData, ((x, y, _, _), body)) = (mapData, ((x, y, -1,  0), body))
-inputHandler (EventKey (Char 'x') Down _ _)             (mapData, ((x, y, xx, yy), [])) = (mapData, ((x, y, xx,  yy), [(x, y)]))
-inputHandler (EventKey (Char 'x') Down _ _)             (mapData, ((x, y, xx, yy), body)) = (mapData, ((x, y, xx, yy), body ++ [last body]))
-inputHandler _ w = w
+inputHandler (EventKey (SpecialKey KeyUp) Down _ _)     (mapData, (((x, y), _, _), body)) = (mapData, (((x, y), 0,  1),  body))
+inputHandler (EventKey (SpecialKey KeyDown) Down _ _)   (mapData, (((x, y), _, _), body)) = (mapData, (((x, y), 0,  -1), body))
+inputHandler (EventKey (SpecialKey KeyRight) Down _ _)  (mapData, (((x, y), _, _), body)) = (mapData, (((x, y), 1,  0),  body))
+inputHandler (EventKey (SpecialKey KeyLeft) Down _ _)   (mapData, (((x, y), _, _), body)) = (mapData, (((x, y), -1,  0), body))
+inputHandler (EventKey (Char 'x') Down _ _)             (mapData, (((x, y), xx, yy), [])) = (mapData, (((x, y), xx,  yy), [(x, y)]))
+inputHandler (EventKey (Char 'x') Down _ _)             (mapData, (((x, y), xx, yy), body)) = (mapData, (((x, y), xx, yy), body ++ [last body]))
+inputHandler _ g = g
