@@ -5,6 +5,7 @@ import Graphics.Gloss.Interface.Pure.Game
 import Data.Fixed
 
 import World
+import Coin
 
 type Node = (Float, Float)                   -- (x, y)
 type Head  = (Node, Float, Float)            -- (coords, velx, vely)
@@ -23,8 +24,10 @@ startY = (height - cellSize) / 2.0
 
 title  = "Snake Game"
 
+coinPosition = (10*cellSize, -10*cellSize)
+
 game :: Game
-game = (World.mapData, (((1*cellSize, -1*cellSize), 0, 0), []))
+game = (World.mapData, (((1*cellSize, -1*cellSize), 0, 0), [(0, 0)]))
 
 window :: Display
 window = (InWindow title (iwidth, iheight) (0, 0))
@@ -67,7 +70,7 @@ drawSnake :: Snake -> [Picture]
 drawSnake (((x, y), _, _), body) = drawNode (x, y) : map drawNode body
 
 drawingFunc :: Game -> Picture
-drawingFunc (mapData, snake) = translate startX startY (pictures $ (drawMap mapData 0 0) ++ drawSnake snake)
+drawingFunc (mapData, snake) = translate startX startY (pictures $ (drawMap mapData 0 0) ++ [drawCoin coinPosition] ++ drawSnake snake)
 
 -- Update
 updateFunc :: Float -> Game -> Game
@@ -79,11 +82,17 @@ updateFunc dt (mapData, (((x, y), velx, vely), body)) = (mapData, (((newX, newY)
         (newVelx, newVely) = updateVel velx vely nextX nextY
         newX = x + newVelx*cellSize
         newY = y + newVely*cellSize
-        newBody = updateBody (x, y) body
+        newBody = updateBody (x, y) body (coinCollision (x, y))
 
-updateBody :: Node -> [Node] -> [Node]
-updateBody _ []   = []
-updateBody (x, y) (h:t) = (x, y) : updateBody h t
+coinCollision :: Node -> Bool
+coinCollision n = n == coinPosition
+
+updateBody :: Node -> [Node] -> Bool -> [Node]
+updateBody _ [] _  = []
+updateBody (x, y) [n] b
+    | b == True = replicate 2 (x, y)
+    | otherwise = [(x, y)]
+updateBody (x, y) (h:t) b = (x, y) : updateBody h t b
 
 updateVel :: Float -> Float -> Float -> Float -> (Float, Float)
 updateVel velx vely nx ny
